@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinOps Sentinel | AI-powered cloud cost optimization</title>
+<meta name="description" content="FinOps Sentinel: an AI agent that finds idle, orphaned and oversized cloud resources across AWS, Azure and Google Cloud and writes safe scripts to fix them. Team Code Catalyst, DEX26020.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050505; --panel:rgba(18,16,14,.74); --panel2:rgba(28,24,20,.85); --line:rgba(255,176,46,.2); --line2:rgba(255,255,255,.1);
+  --amber:#ffb02e; --ember:#ff6a2b; --rose:#e23d6b; --text:#f3efe8; --mute:#a59f93; --ok:#5fd39a; --bad:#ff6b6b; --info:#38bdf8;
+  --head:'Sora','Segoe UI',system-ui,sans-serif; --body:'Manrope','Segoe UI',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  --grad:linear-gradient(100deg,#ffb02e,#ff6a2b 60%,#e23d6b);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:80px}
+body{background:var(--bg);color:var(--text);font:400 17px/1.65 var(--body);overflow-x:hidden}
+#bg{position:fixed;inset:0;width:100%;height:100%;z-index:-1}
+h1,h2,h3,h4{font-family:var(--head);line-height:1.12;letter-spacing:-.02em}
+h2{font-size:clamp(1.9rem,4vw,2.9rem);margin-bottom:.6rem}
+h3{font-size:1.2rem;margin-bottom:10px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font:600 .78rem var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--amber);margin-bottom:14px}
+.eyebrow:before{content:"";width:26px;height:2px;background:var(--grad)}
+.lead{color:var(--mute);max-width:64ch;margin-bottom:2.4rem}
+.wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+section{padding:88px 0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:6px}
+.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* progress + header */
+#prog{position:fixed;top:0;left:0;height:3px;background:var(--grad);width:0;z-index:60}
+header{position:sticky;top:0;z-index:50;background:rgba(5,5,5,.72);backdrop-filter:blur(14px);border-bottom:1px solid var(--line2)}
+nav{display:flex;align-items:center;gap:26px;height:66px}
+.brand{font:800 1.15rem var(--head);text-decoration:none;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand svg{width:28px;height:28px}
+nav ul{display:flex;gap:20px;list-style:none;margin-left:auto;font-size:.9rem;font-weight:500}
+nav ul a{text-decoration:none;color:var(--mute);padding:4px 0;border-bottom:2px solid transparent}
+nav ul a:hover,nav ul a.act{color:var(--amber);border-color:var(--amber)}
+.btn{font:700 .92rem var(--body);border:0;cursor:pointer;border-radius:10px;padding:11px 20px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:transform .15s,box-shadow .2s,background .2s,border-color .2s,color .2s}
+.btn:active{transform:translateY(1px)}
+.btn-a{background:var(--grad);color:#1a0d02;box-shadow:0 8px 30px -8px rgba(255,106,43,.7)}.btn-a:hover{box-shadow:0 10px 38px -4px rgba(255,106,43,.9)}
+.btn-g{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}.btn-g:hover{border-color:var(--amber);color:var(--amber)}
+.btn-s{padding:8px 14px;font-size:.84rem}
+#authSlot{display:flex;gap:10px;align-items:center}
+#hdrIntro{flex:none}
+@media(max-width:1020px){#hdrIntro{margin-left:auto}#authSlot{margin-left:0!important}}
+@media(max-width:520px){#hdrIntro{padding:8px 10px;font-size:0}#hdrIntro svg{margin:0}}
+@media(max-width:460px){nav{gap:10px}.brand{font-size:1rem;gap:8px}.brand svg{width:24px;height:24px}#authSlot{gap:6px}#authSlot .btn-s,#hdrIntro{padding:7px 10px;font-size:.8rem}#hdrIntro{font-size:0}.chip{padding:5px 10px;font-size:.78rem}}
+@media(max-width:360px){.brand{font-size:0;gap:0}#authSlot .btn-s{padding:6px 8px}}
+.chip{border:1px solid var(--line);background:rgba(255,176,46,.1);color:var(--amber);border-radius:999px;padding:6px 14px;font-weight:600;font-size:.86rem}
+@media(max-width:1020px){nav ul{display:none}#authSlot{margin-left:auto}}
+
+/* reveal */
+.js .rv{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s ease}
+.js .rv.in{opacity:1;transform:none}
+
+/* hero */
+.hero{padding:84px 0 40px}
+.hero .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:50px;align-items:center}
+.tag{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:rgba(255,176,46,.08);border-radius:999px;padding:6px 14px;font-size:.82rem;color:#ffd9a3;margin-bottom:22px}
+.tag i{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.hero h1{font-size:clamp(2.4rem,5.6vw,4.4rem);font-weight:800}
+.hero h1 em{font-style:normal;display:block}
+.hero p{color:#cfc8ba;max-width:52ch;margin:22px 0 30px;font-size:1.1rem}
+.cta{display:flex;gap:14px;flex-wrap:wrap}
+.term{background:rgba(8,7,6,.9);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 0 90px -20px rgba(255,106,43,.5)}
+.term .bar{display:flex;gap:7px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line2);font:500 .78rem var(--mono);color:var(--mute)}
+.term .bar i{width:11px;height:11px;border-radius:50%;background:#3a342c}.term .bar i:nth-child(1){background:#e23d6b}.term .bar i:nth-child(2){background:#ffb02e}.term .bar i:nth-child(3){background:#5fd39a}
+.term .bar span{margin-left:8px}
+#tout{font:13px/1.7 var(--mono);color:#e8dfd0;padding:16px 18px;min-height:330px;white-space:pre-wrap}
+#tout .c{color:#7d776c}#tout .a{color:var(--amber)}#tout .g{color:var(--ok)}#tout .r{color:var(--bad)}#tout .b{color:var(--info)}
+.cur{display:inline-block;width:8px;height:15px;background:var(--amber);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:56px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);backdrop-filter:blur(8px)}
+.stats div{padding:22px;border-right:1px solid var(--line2);font-size:.9rem;color:var(--mute)}
+.stats div:last-child{border:0}
+.stats strong{display:block;font:800 1.8rem var(--head);color:var(--text)}
+@media(max-width:900px){.hero .grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}.stats div:nth-child(2){border-right:0}.stats div:nth-child(-n+2){border-bottom:1px solid var(--line2)}}
+
+/* problem */
+.prob{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:stretch}
+.leak{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:26px}
+.leakbar{display:flex;height:46px;border-radius:10px;overflow:hidden;margin:18px 0 14px}
+.leakbar div{display:flex;align-items:center;justify-content:center;font:700 .82rem var(--head);color:#1a0d02}
+.lk{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;font-size:.9rem;padding:6px 0;color:#d9d3c7}
+.lk i{width:12px;height:12px;border-radius:3px}
+.pain{display:grid;gap:12px}
+.pain div{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:start;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:16px 18px}
+.pain b{display:block;font-family:var(--head);margin-bottom:2px}
+.pain span{color:var(--mute);font-size:.93rem}
+.ico{width:44px;height:44px;border-radius:11px;display:grid;place-items:center;background:rgba(255,176,46,.12);color:var(--amber)}
+.ico svg{width:22px;height:22px}
+@media(max-width:900px){.prob{grid-template-columns:1fr}}
+
+/* cards */
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.card{background:var(--panel);border:1px solid var(--line2);border-top:2px solid var(--amber);border-radius:14px;padding:26px;backdrop-filter:blur(8px)}
+.card ul{list-style:none}
+.card li{padding:6px 0 6px 20px;position:relative;font-size:.96rem;color:#d9d3c7}
+.card li:before{content:"";position:absolute;left:0;top:.95em;width:7px;height:7px;border-radius:50%;background:var(--ember)}
+.num{font:700 .78rem var(--mono);color:var(--amber);display:block;margin-bottom:8px}
+@media(max-width:900px){.three{grid-template-columns:1fr}}
+
+/* calculator */
+.calc{margin-top:28px;border:1px solid var(--line);border-radius:16px;padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;background:var(--panel)}
+.calc label{font-weight:700;display:block;margin-bottom:10px}
+input[type=range]{width:100%;accent-color:var(--amber)}
+.big{font:800 3rem var(--head)}
+.rate{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+@media(max-width:800px){.calc{grid-template-columns:1fr}}
+
+/* segmented */
+.seg{display:inline-flex;background:rgba(255,255,255,.06);border-radius:10px;padding:3px;flex-wrap:wrap}
+.seg button{border:0;background:none;color:var(--mute);font:600 .85rem var(--body);padding:7px 14px;border-radius:8px;cursor:pointer}
+.seg button.on{background:var(--amber);color:#1a0d02}
+
+/* DEMO */
+.demo{border:1px solid var(--line);border-radius:20px;background:var(--panel);backdrop-filter:blur(10px);overflow:hidden}
+.dtop{display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--line2)}
+.dtop .l{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:10px 16px;font-size:.88rem;color:var(--mute);cursor:pointer;transition:border-color .2s,background .2s}
+.drop:hover,.drop.over{border-color:var(--amber);background:rgba(255,176,46,.06);color:var(--text)}
+.drop input{display:none}
+.pipe{display:grid;grid-template-columns:repeat(6,1fr);border-bottom:1px solid var(--line2)}
+.pipe div{padding:12px 10px;text-align:center;font:600 .8rem var(--mono);color:#5d584f;border-right:1px solid var(--line2);position:relative;transition:color .3s,background .3s}
+.pipe div:last-child{border-right:0}
+.pipe div.run{color:var(--amber);background:rgba(255,176,46,.08)}
+.pipe div.done{color:var(--ok)}
+.pipe div.done:after{content:"✓";margin-left:6px}
+.dgrid{display:grid;grid-template-columns:1.25fr 1fr}
+.dgrid>div{padding:22px 24px;min-width:0}
+.dgrid>div:first-child{border-right:1px solid var(--line2)}
+.ksum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.ksum div{border:1px solid var(--line2);border-radius:12px;padding:12px 14px;background:rgba(0,0,0,.25)}
+.ksum span{display:block;font-size:.78rem;color:var(--mute)}
+.ksum strong{font:800 1.45rem var(--head)}
+.tbl{width:100%;overflow-x:auto}
+table.t{width:100%;border-collapse:collapse;font-size:.88rem}
+table.t th,table.t td{padding:9px 10px;border-bottom:1px solid var(--line2);text-align:left;vertical-align:top}
+table.t th{color:var(--amber);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+table.t td.n,table.t th.n{text-align:right;white-space:nowrap}
+table.t tr.sel{background:rgba(255,176,46,.08)}
+table.t tbody tr{cursor:pointer}
+table.t tbody tr:hover{background:rgba(255,255,255,.03)}
+.pv{display:inline-block;font:600 .72rem var(--mono);padding:2px 7px;border-radius:6px;border:1px solid}
+.pv.AWS{color:#ffb02e;border-color:rgba(255,176,46,.4)}.pv.Azure{color:#38bdf8;border-color:rgba(56,189,248,.4)}.pv.GCP{color:#5fd39a;border-color:rgba(95,211,154,.4)}
+.prod{display:inline-block;font:600 .7rem var(--mono);color:var(--bad);border:1px solid rgba(255,107,107,.4);border-radius:6px;padding:1px 6px;margin-left:6px}
+.conf{height:6px;border-radius:4px;background:rgba(255,255,255,.08);width:70px;display:inline-block;vertical-align:middle;overflow:hidden}
+.conf i{display:block;height:100%;background:var(--grad)}
+.narr{background:rgba(0,0,0,.3);border:1px solid var(--line2);border-left:3px solid var(--amber);border-radius:10px;padding:14px 16px;font-size:.93rem;color:#ddd5c8;margin-bottom:16px}
+.narr .who{font:600 .74rem var(--mono);color:var(--amber);display:block;margin-bottom:6px;letter-spacing:.06em}
+.code{background:#000;border:1px solid var(--line2);color:#ffd9a3;font:12.5px/1.6 var(--mono);border-radius:10px;padding:14px;overflow:auto;white-space:pre;max-height:330px}
+.code .c{color:#7d776c}.code .k{color:#ff8a5b}.code .s{color:#5fd39a}
+.checks{list-style:none;margin:14px 0;display:grid;gap:6px;font-size:.88rem}
+.checks li{display:flex;gap:8px;align-items:center}
+.checks li:before{content:"✓";color:var(--ok);font-weight:700}
+.checks li.w:before{content:"!";color:var(--bad)}
+.dl{display:flex;gap:10px;flex-wrap:wrap}
+.empty{color:var(--mute);font-size:.92rem;padding:30px 0;text-align:center}
+.fine{margin-top:14px;font-size:.84rem;color:var(--mute)}
+@media(max-width:960px){.dgrid{grid-template-columns:1fr}.dgrid>div:first-child{border-right:0;border-bottom:1px solid var(--line2)}.pipe{grid-template-columns:repeat(3,1fr)}.pipe div:nth-child(3){border-right:0}.pipe div:nth-child(-n+3){border-bottom:1px solid var(--line2)}.ksum strong{font-size:1.15rem}}
+
+/* architecture */
+.arch{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+.st{border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,176,46,.08),rgba(255,106,43,.02));border-radius:14px;padding:16px 14px;position:relative;cursor:pointer;text-align:left;color:var(--text);font:inherit;transition:transform .2s,border-color .2s,background .2s}
+.st:hover{transform:translateY(-3px)}
+.st.on{border-color:var(--amber);background:linear-gradient(180deg,rgba(255,176,46,.22),rgba(255,106,43,.06))}
+.st:not(:last-child):after{content:"";position:absolute;right:-12px;top:50%;border:6px solid transparent;border-left:7px solid var(--ember);transform:translateY(-50%)}
+.st small{font:600 .72rem var(--mono);color:var(--amber)}
+.st b{display:block;font:700 1.05rem var(--head);margin:4px 0}
+.st span{font-size:.84rem;color:var(--mute)}
+.detail{margin-top:18px;border:1px solid var(--line2);border-radius:16px;background:var(--panel);padding:24px;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:24px}
+.detail h4{font-size:.8rem;font-family:var(--mono);color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.detail p,.detail li{font-size:.93rem;color:#d9d3c7}
+.detail ul{list-style:none}.detail li{padding:3px 0}
+.detail .code{max-height:none;font-size:12px}
+.tech{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}
+.tech div{border:1px solid var(--line2);background:var(--panel);border-radius:999px;padding:8px 16px;font-size:.88rem}
+.tech b{color:var(--amber);font-family:var(--head);margin-right:6px}
+@media(max-width:960px){.arch{grid-template-columns:1fr 1fr}.st:after{display:none}.detail{grid-template-columns:1fr}}
+
+/* schema */
+.schema{border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:var(--panel)}
+.schema table{width:100%;border-collapse:collapse;font-size:.88rem}
+.schema th,.schema td{padding:11px 14px;border-bottom:1px solid var(--line2);text-align:left}
+.schema th{font:600 .78rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--mute);background:rgba(0,0,0,.3)}
+.schema td{font-family:var(--mono);font-size:.82rem;color:#d9d3c7}
+.schema td:last-child{color:var(--amber);font-weight:600}
+.schema tr:last-child td{border-bottom:0}
+
+/* detection rules */
+.rules{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.rule{background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:18px}
+.rule b{font-family:var(--head);display:block;margin-bottom:6px}
+.rule code{display:block;font:12px/1.5 var(--mono);color:#ffd9a3;background:#000;border-radius:8px;padding:8px 10px;margin:8px 0}
+.rule span{font-size:.85rem;color:var(--mute)}
+@media(max-width:1000px){.rules{grid-template-columns:1fr 1fr}}
+
+/* guardrails */
+.guard{display:grid;grid-template-columns:1fr 1.3fr;gap:30px;align-items:center}
+.layers{display:grid;gap:10px}
+.layer{display:grid;grid-template-columns:38px 1fr;gap:14px;align-items:center;padding:14px 18px;border-radius:12px;border:1px solid var(--line2);background:var(--panel)}
+.layer:nth-child(1){margin:0 0}.layer:nth-child(2){margin:0 14px}.layer:nth-child(3){margin:0 28px}.layer:nth-child(4){margin:0 42px}.layer:nth-child(5){margin:0 56px;border-color:var(--ok);background:rgba(95,211,154,.08)}
+.layer em{font:700 1rem var(--mono);font-style:normal;color:var(--amber)}
+.layer b{display:block;font-family:var(--head);font-size:.98rem}
+.layer span{font-size:.86rem;color:var(--mute)}
+.risk{display:grid;grid-template-columns:1fr 30px 1fr;gap:12px 8px;align-items:stretch}
+.risk .r{background:rgba(226,61,107,.12);border:1px solid rgba(226,61,107,.35);border-radius:10px;padding:14px 16px;font-size:.93rem}
+.risk .s{background:rgba(95,211,154,.1);border:1px solid rgba(95,211,154,.35);border-radius:10px;padding:14px 16px;font-size:.93rem}
+.risk .a{align-self:center;text-align:center;color:var(--amber)}
+.risk .hd{font:600 .78rem var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--mute);background:none;border:0;padding:0}
+@media(max-width:900px){.guard{grid-template-columns:1fr}.layer{margin:0!important}}
+
+/* results dashboard */
+.dash{border:1px solid var(--line);border-radius:20px;background:var(--panel);backdrop-filter:blur(10px);overflow:hidden}
+.cos{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line2)}
+.co{background:none;border:0;border-right:1px solid var(--line2);color:var(--mute);text-align:left;padding:18px 20px;cursor:pointer;font:inherit;transition:background .2s}
+.co:last-child{border-right:0}
+.co b{display:block;color:var(--text);font:700 1rem var(--head)}
+.co span{font-size:.82rem}
+.co:hover{background:rgba(255,176,46,.06)}
+.co.on{background:rgba(255,176,46,.12);box-shadow:inset 0 -3px 0 var(--amber)}
+.co.on b{color:var(--amber)}
+.dbody{display:grid;grid-template-columns:1.7fr 1fr}
+.dleft{padding:24px;border-right:1px solid var(--line2);min-width:0}
+.dright{padding:24px}
+.ctrls{display:flex;gap:16px;flex-wrap:wrap;justify-content:space-between;margin-bottom:14px}
+#chart{min-height:340px}
+#chart svg{width:100%;height:auto;display:block}
+.bar{transform-box:fill-box;transform-origin:bottom;animation:grow .6s ease-out}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.draw{stroke-dasharray:2000;stroke-dashoffset:2000;animation:dash 1.1s ease-out forwards}
+@keyframes dash{to{stroke-dashoffset:0}}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:.85rem;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.kpi{padding:14px 0;border-bottom:1px solid var(--line2)}
+.kpi:first-of-type{padding-top:0}
+.kpi span{display:block;font-size:.82rem;color:var(--mute)}
+.kpi strong{font:800 1.8rem var(--head)}
+.kpi strong.g{color:var(--ok)}
+.story{font-size:.93rem;color:#d9d3c7;margin:16px 0}
+.badge{display:inline-block;border:1px dashed var(--line);color:var(--amber);font-size:.8rem;padding:3px 10px;border-radius:999px;margin-bottom:12px}
+@media(max-width:900px){.dbody{grid-template-columns:1fr}.dleft{border-right:0;border-bottom:1px solid var(--line2)}.cos{grid-template-columns:1fr 1fr}.co:nth-child(2){border-right:0}.co:nth-child(-n+2){border-bottom:1px solid var(--line2)}}
+
+/* compare */
+.cmp{border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:var(--panel)}
+.cmp table{width:100%;border-collapse:collapse}
+.cmp th,.cmp td{padding:14px 18px;border-bottom:1px solid var(--line2);text-align:center;font-size:.93rem}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp th{font-family:var(--head);font-size:.95rem;background:rgba(0,0,0,.3)}
+.cmp th.us{color:#1a0d02;background:var(--grad)}
+.cmp td.us{background:rgba(255,176,46,.07);font-weight:700}
+.cmp tr:last-child td{border-bottom:0}
+.y{color:var(--ok);font-weight:700}.p{color:var(--amber)}.no{color:#6f6a60}
+.cmpw{overflow-x:auto}
+
+/* business */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.stack{display:grid;gap:18px}
+.feas{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:34px}
+.feas div{border:1px solid var(--line2);background:var(--panel);border-radius:14px;padding:18px}
+.feas b{display:block;font-family:var(--head);color:var(--amber);margin-bottom:4px}
+.feas span{font-size:.9rem;color:var(--mute)}
+@media(max-width:900px){.two{grid-template-columns:1fr}.feas{grid-template-columns:1fr 1fr}}
+
+/* roadmap */
+.road{display:grid;grid-template-columns:repeat(4,1fr);gap:0;position:relative}
+.road:before{content:"";position:absolute;left:0;right:0;top:15px;height:2px;background:linear-gradient(90deg,var(--amber),var(--ember),var(--rose),rgba(255,255,255,.15))}
+.ph{padding:0 18px 0 0;position:relative}
+.ph:before{content:"";display:block;width:32px;height:32px;border-radius:50%;background:#050505;border:3px solid var(--amber);margin-bottom:16px;position:relative}
+.ph.now:before{background:var(--amber);box-shadow:0 0 20px var(--amber)}
+.ph small{font:600 .74rem var(--mono);color:var(--amber);text-transform:uppercase;letter-spacing:.08em}
+.ph b{display:block;font:700 1.1rem var(--head);margin:4px 0 8px}
+.ph ul{list-style:none;font-size:.9rem;color:var(--mute)}
+.ph li{padding:2px 0}
+@media(max-width:900px){.road{grid-template-columns:1fr 1fr;gap:28px 0}.road:before{display:none}}
+
+/* membership */
+.mem{border:1px solid var(--line);border-radius:16px;padding:24px 28px;display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--panel)}
+.mem p{color:var(--mute);max-width:56ch}
+#plans{display:none;margin-top:16px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);overflow:hidden}
+#plans.open{display:block}
+.pl{display:grid;grid-template-columns:130px 100px 1fr auto;gap:16px;align-items:center;padding:16px 24px;border-bottom:1px solid var(--line2);font-size:.93rem}
+.pl:last-child{border:0}.pl b{font-family:var(--head)}.pl span{color:var(--mute)}
+@media(max-width:700px){.pl{grid-template-columns:1fr 1fr}.pl span{grid-column:1/-1}}
+
+/* refs + footer */
+footer{border-top:1px solid var(--line2);padding:30px 0;color:var(--mute);font-size:.9rem;background:rgba(0,0,0,.6)}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+/* modal */
+/* full-screen intro on entry */
+#iov{position:fixed;inset:0;z-index:200;background:#000;display:none;opacity:1;transition:opacity .6s ease}
+html.intro-on #iov,#iov.open{display:block}
+html.intro-on body{overflow:hidden}
+#iov.closing{opacity:0}
+#iov video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;cursor:pointer}
+#iov video::cue{font-family:var(--body);background:rgba(0,0,0,.72);color:#fff;font-size:clamp(14px,1.6vw,22px)}
+.ibar{position:absolute;left:0;right:0;display:flex;align-items:center;gap:12px;padding:18px clamp(16px,3vw,32px);z-index:2;transition:opacity .4s}
+.itop{top:0;justify-content:space-between;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)}
+.ibot{bottom:0;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);padding-top:40px}
+#iov.idle .ibar{opacity:0}
+#iov.idle{cursor:none}
+.ibrand{display:flex;align-items:center;gap:10px;font:800 1.05rem var(--head);color:#fff}
+.ibrand svg{width:26px;height:26px}
+.iskip{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.3);background:rgba(10,8,6,.55);backdrop-filter:blur(8px);color:#fff;font:700 .95rem var(--body);padding:10px 18px;border-radius:999px;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
+.iskip:hover{background:var(--amber);border-color:var(--amber);color:#1a0d02}
+.iskip svg{width:16px;height:16px}
+.ictl{width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(10,8,6,.55);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
+.ictl:hover{border-color:var(--amber);color:var(--amber)}
+.ictl svg{width:18px;height:18px}
+.ictl.on{border-color:var(--amber);color:var(--amber)}
+.iprog{flex:1;height:5px;border-radius:4px;background:rgba(255,255,255,.18);cursor:pointer;position:relative}
+.iprog i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--grad);width:0}
+.itime{font:600 .82rem var(--mono);color:#d9d3c7;min-width:86px;text-align:right}
+.isound{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);z-index:3;border:0;background:var(--grad);color:#1a0d02;font:700 .95rem var(--body);padding:12px 22px;border-radius:999px;cursor:pointer;display:none;align-items:center;gap:8px;box-shadow:0 10px 40px -8px rgba(255,106,43,.9);animation:ipulse 1.8s ease-in-out infinite}
+.isound.show{display:inline-flex}
+.isound svg{width:18px;height:18px}
+@keyframes ipulse{50%{box-shadow:0 0 0 10px rgba(255,176,46,.15),0 10px 40px -8px rgba(255,106,43,.9)}}
+.ibig{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px 0 0 -48px;border-radius:50%;border:0;background:var(--grad);color:#1a0d02;display:none;place-items:center;cursor:pointer;z-index:3;box-shadow:0 0 0 14px rgba(255,176,46,.16)}
+.ibig svg{width:38px;height:38px;margin-left:6px}
+#iov.paused .ibig{display:grid}
+.ireplay{display:inline-flex;align-items:center;gap:7px}
+.ireplay svg{width:13px;height:13px}
+@media(max-width:600px){.itime{display:none}.iskip{padding:8px 14px;font-size:.85rem}.isound{bottom:80px;font-size:.85rem}}
+
+/* intro video */
+.vgrid{display:grid;grid-template-columns:1.75fr 1fr;gap:34px;align-items:center}
+.vbox{position:relative;border-radius:18px;overflow:hidden;border:1px solid var(--line);background:#000;box-shadow:0 30px 100px -30px rgba(255,106,43,.55);aspect-ratio:16/9}
+.vbox video{width:100%;height:100%;display:block;background:#000}
+.vplay{position:absolute;left:50%;top:50%;width:92px;height:92px;margin:-46px 0 0 -46px;border-radius:50%;border:0;background:var(--grad);color:#1a0d02;cursor:pointer;display:grid;place-items:center;box-shadow:0 0 0 12px rgba(255,176,46,.18),0 20px 60px -10px rgba(255,106,43,.9);transition:transform .2s}
+.vplay:hover{transform:scale(1.08)}
+.vplay svg{width:36px;height:36px;margin-left:5px}
+.vbox.playing .vplay{display:none}
+.vmiss{position:absolute;inset:auto 16px 16px 16px;background:rgba(0,0,0,.8);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.88rem;color:#ffd9a3}
+.chaps{list-style:none;display:grid;gap:4px;max-height:360px;overflow:auto;padding-right:4px}
+.chaps button{width:100%;display:flex;gap:12px;align-items:center;text-align:left;background:none;border:1px solid transparent;border-radius:10px;padding:7px 10px;color:#d9d3c7;font:500 .92rem var(--body);cursor:pointer}
+.chaps button:hover{border-color:var(--line2);background:rgba(255,255,255,.03)}
+.chaps button.on{border-color:var(--line);background:rgba(255,176,46,.1);color:var(--text)}
+.chaps time{font:600 .8rem var(--mono);color:var(--amber);min-width:42px}
+@media(max-width:900px){.vgrid{grid-template-columns:1fr}.chaps{max-height:none}}
+
+.hide{display:none!important}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--amber);color:#1a0d02;font-weight:700;padding:12px 22px;border-radius:10px;z-index:99;max-width:90vw}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}.js .rv{opacity:1;transform:none}}
+</style>
+<script>try{if(!sessionStorage.getItem('fs_intro_seen'))document.documentElement.classList.add('intro-on')}catch(e){document.documentElement.classList.add('intro-on')}</script>
+</head>
+<body>
+<div id="iov" role="dialog" aria-modal="true" aria-label="FinOps Sentinel intro video">
+  <video id="iVid" playsinline preload="auto" poster="finops_sentinel_poster.jpg">
+    <source src="finops_sentinel_intro.mp4" type="video/mp4">
+    <track kind="captions" src="finops_sentinel_intro.vtt" srclang="en" label="English">
+  </video>
+  <div class="ibar itop">
+    <div class="ibrand"><svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg2" x1="0" x2="1"><stop offset="0" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff6a2b"/></linearGradient></defs><path d="M16 2 4 7v8c0 7.5 5 13 12 15 7-2 12-7.5 12-15V7z" fill="url(#lg2)"/><path d="M10 19l4-4 3 3 5-6" stroke="#1a0d02" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>FinOps Sentinel</div>
+    <button class="iskip" id="iSkip"><span>Skip intro</span><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 5l9 7-9 7zM15 5h3v14h-3z"/></svg></button>
+  </div>
+  <button class="ibig" id="iBig" aria-label="Play intro"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l14 8-14 8z"/></svg></button>
+  <button class="isound" id="iSound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 010 7M19 5a10 10 0 010 14"/></svg>Tap to turn on sound</button>
+  <div class="ibar ibot">
+    <button class="ictl" id="iPlay" aria-label="Pause"></button>
+    <button class="ictl" id="iMute" aria-label="Mute"></button>
+    <button class="ictl on" id="iCC" aria-label="Captions" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.5a2 2 0 100 3M16 10.5a2 2 0 100 3"/></svg></button>
+    <div class="iprog" id="iProg" role="slider" aria-label="Seek" tabindex="0"><i></i></div>
+    <span class="itime" id="iTime">0:00 / 1:50</span>
+  </div>
+</div>
+<div id="prog"></div>
+<canvas id="bg" aria-hidden="true"></canvas>
+
+<header><div class="wrap"><nav aria-label="Main">
+  <a class="brand" href="#top">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#ffb02e"/><stop offset="1" stop-color="#ff6a2b"/></linearGradient></defs><path d="M16 2 4 7v8c0 7.5 5 13 12 15 7-2 12-7.5 12-15V7z" fill="url(#lg)"/><path d="M10 19l4-4 3 3 5-6" stroke="#1a0d02" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    FinOps Sentinel
+  </a>
+  <ul id="navl">
+    <li><a href="#intro">Video</a></li>
+    <li><a href="#problem">Problem</a></li>
+    <li><a href="#demo">Live demo</a></li>
+    <li><a href="#approach">Approach</a></li>
+    <li><a href="#safety">Safety</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#business">Business</a></li>
+    <li><a href="#impact">Impact</a></li>
+  </ul>
+  <button class="btn btn-g btn-s ireplay" id="hdrIntro" title="Play the intro video"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l15 8-15 8z"/></svg>Intro</button>
+  <div id="authSlot"></div>
+</nav></div></header>
+
+<main id="top">
+<!-- HERO -->
+<div class="hero"><div class="wrap">
+  <div class="grid">
+    <div>
+      <span class="tag"><i></i>Team Code Catalyst &middot; DEX26020 &middot; AI &amp; Machine Learning</span>
+      <h1>Stop paying for cloud you aren't using.<em class="grad">Let an AI agent fix the bill.</em></h1>
+      <p>Upload a billing export. FinOps Sentinel finds idle, orphaned and oversized resources across AWS, Azure and Google Cloud, explains each leak in plain language, and hands your engineers a safe, reviewed script to fix it.</p>
+      <div class="cta">
+        <a class="btn btn-a" href="#demo">Try the live demo &rarr;</a>
+        <a class="btn btn-g" href="#intro" id="watchBtn" role="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l15 8-15 8z"/></svg>Watch the intro (1:50)</a>
+      </div>
+    </div>
+    <div class="term" aria-label="Animated example of the agent scanning a bill">
+      <div class="bar"><i></i><i></i><i></i><span>sentinel scan billing_oct.csv</span></div>
+      <div id="tout"></div>
+    </div>
+  </div>
+  <div class="stats rv">
+    <div><strong class="grad">~30%</strong>of cloud budget is wasted on unused resources</div>
+    <div><strong>3 clouds</strong>AWS, Azure and Google Cloud in one view</div>
+    <div><strong>0 stored</strong>credentials; works from anonymized exports</div>
+    <div><strong>You approve</strong>every change before it runs</div>
+  </div>
+</div></div>
+
+<!-- INTRO VIDEO -->
+<section id="intro" style="padding-top:40px"><div class="wrap">
+  <div class="vgrid rv">
+    <div class="vbox">
+      <video id="introVid" controls playsinline preload="metadata" poster="finops_sentinel_poster.jpg">
+        <source src="finops_sentinel_intro.mp4" type="video/mp4">
+        <track kind="captions" src="finops_sentinel_intro.vtt" srclang="en" label="English">
+      </video>
+      <button class="vplay" id="vplay" aria-label="Play the intro video"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l14 8-14 8z"/></svg></button>
+      <p class="vmiss hide" id="vmiss">Video file not found. Keep <code>finops_sentinel_intro.mp4</code> in the same folder as this page.</p>
+    </div>
+    <div>
+      <span class="eyebrow">Intro video</span>
+      <h2 style="font-size:clamp(1.6rem,3vw,2.2rem)">The whole idea in under two minutes</h2>
+      <p style="color:var(--mute);font-size:.95rem;margin-bottom:16px">A guided tour of the problem, the agent and every part of this page. Captions explain each section. Jump to a chapter:</p>
+      <ol class="chaps" id="chaps"></ol>
+    </div>
+  </div>
+</div></section>
+
+<!-- PROBLEM -->
+<section id="problem"><div class="wrap">
+  <span class="eyebrow">01 &middot; The problem</span>
+  <h2>Cloud bills leak money in places nobody looks</h2>
+  <p class="lead">Resources get created in minutes and forgotten for months. The waste is hidden in billing spreadsheets with thousands of rows, spread across three providers that all format their bills differently.</p>
+  <div class="prob">
+    <div class="leak rv">
+      <h3>Where a typical $100K monthly bill goes</h3>
+      <p style="color:var(--mute);font-size:.9rem">Illustrative split, using the ~30% waste figure from industry surveys.</p>
+      <div class="leakbar" role="img" aria-label="70 percent useful, 30 percent waste">
+        <div style="flex:70;background:#3a342c;color:#cfc8ba">Useful 70%</div>
+        <div style="flex:12;background:#ffb02e">12</div>
+        <div style="flex:8;background:#ff6a2b">8</div>
+        <div style="flex:6;background:#e23d6b">6</div>
+        <div style="flex:4;background:#8b5cf6">4</div>
+      </div>
+      <div class="lk"><i style="background:#ffb02e"></i>Idle VMs running at low CPU<b>$12K</b></div>
+      <div class="lk"><i style="background:#ff6a2b"></i>Over-provisioned databases<b>$8K</b></div>
+      <div class="lk"><i style="background:#e23d6b"></i>Unattached disks and volumes<b>$6K</b></div>
+      <div class="lk"><i style="background:#8b5cf6"></i>Stale snapshots, unused IPs<b>$4K</b></div>
+    </div>
+    <div class="pain">
+      <div class="rv"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span><p><b>Spreadsheets nobody can read</b><span>Teams scroll through raw billing exports by hand to find what is costing money.</span></p></div>
+      <div class="rv"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.6 10.5l6.8-3M8.6 13.5l6.8 3"/></svg></span><p><b>Three clouds, three formats</b><span>AWS, Azure and GCP name the same thing differently, so nobody sees the full picture.</span></p></div>
+      <div class="rv"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg></span><p><b>Charts, not actions</b><span>Dashboards show that spend went up. They don't say which resource to switch off or how.</span></p></div>
+      <div class="rv"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg></span><p><b>Fear of breaking production</b><span>Engineers won't delete anything they aren't sure about, so waste stays forever.</span></p></div>
+    </div>
+  </div>
+
+  <div class="calc rv">
+    <div>
+      <label for="spend">Your monthly cloud bill: <span id="spendVal">$50,000</span></label>
+      <input id="spend" type="range" min="1000" max="500000" step="1000" value="50000">
+      <div class="rate"><span style="color:var(--mute);font-size:.88rem;align-self:center">Waste assumed:</span><div class="seg" id="rateSeg"><button data-r=".15">15%</button><button data-r=".3" class="on">30%</button><button data-r=".4">40%</button></div></div>
+      <p style="color:var(--mute);font-size:.86rem;margin-top:10px">30% is the industry figure from our research. Real savings depend on your own data.</p>
+    </div>
+    <div>
+      <div style="color:var(--mute)">Possible waste to recover each month</div>
+      <div class="big grad" id="save">$15,000</div>
+      <div id="saveYear" style="color:var(--mute)">$180,000 a year</div>
+    </div>
+  </div>
+</div></section>
+<!-- SOLUTION -->
+<section id="solution" style="padding-top:20px"><div class="wrap">
+  <span class="eyebrow">02 &middot; The solution</span>
+  <h2>An autonomous agent for cloud waste</h2>
+  <p class="lead">FinOps Sentinel does more than draw charts. It reads the bill, decides what is waste, explains why, and writes the command to fix it, with safety checks built in.</p>
+  <div class="three">
+    <div class="card rv"><span class="num">What it does</span><h3>Upload a bill, get a fix list</h3><ul>
+      <li>Upload raw, anonymized billing logs (CSV) and utilization metrics</li>
+      <li>Works across AWS, Azure and Google Cloud</li>
+      <li>Finds orphaned, idle and over-provisioned resources</li>
+      <li>Outputs a plain-language report plus ready-to-run scripts</li></ul></div>
+    <div class="card rv"><span class="num">How it helps</span><h3>Shows exactly where money leaks</h3><ul>
+      <li>Targets the ~30% of budget lost to unused resources</li>
+      <li>Replaces hours of manual spreadsheet reading</li>
+      <li>Ranks every leak by monthly cost</li>
+      <li>Example: 4 unattached EBS volumes costing $1,200/month</li></ul></div>
+    <div class="card rv"><span class="num">What's new</span><h3>From insight to safe action</h3><ul>
+      <li>An agent that acts, not a static chart</li>
+      <li>Generates precise CLI scripts to archive, delete or downsize</li>
+      <li>Protects production before any change is made</li>
+      <li>One tool for multi-cloud waste hunting</li></ul></div>
+  </div>
+</div></section>
+
+<!-- LIVE DEMO -->
+<section id="demo"><div class="wrap">
+  <span class="eyebrow">03 &middot; Live demo</span>
+  <h2>Run the agent on a sample bill</h2>
+  <p class="lead">This is the full pipeline running in your browser. Load the sample multi-cloud bill, or upload your own CSV in the same format. Click any finding to see its explanation and the script the agent writes for it.</p>
+  <div class="demo rv">
+    <div class="dtop">
+      <div class="l">
+        <button class="btn btn-a" id="runSample">&#9654; Run on sample bill</button>
+        <label class="drop" id="drop">Or drop / choose your CSV<input type="file" id="file" accept=".csv,text/csv"></label>
+      </div>
+      <div class="l">
+        <button class="btn btn-g btn-s" id="getSample">Download sample CSV</button>
+      </div>
+    </div>
+    <div class="pipe" id="pipe"><div>Upload</div><div>Clean</div><div>Detect</div><div>AI Agent</div><div>Scripts</div><div>Review</div></div>
+    <div class="dgrid">
+      <div>
+        <div class="ksum">
+          <div><span>Resources scanned</span><strong id="kScan">0</strong></div>
+          <div><span>Findings</span><strong id="kFind">0</strong></div>
+          <div><span>Monthly savings</span><strong class="grad" id="kSave">$0</strong></div>
+        </div>
+        <div class="tbl" id="findings"><p class="empty">Press <b>Run on sample bill</b> to start the scan.</p></div>
+      </div>
+      <div>
+        <div id="explain"><p class="empty">The agent's explanation and fix script will appear here.</p></div>
+      </div>
+    </div>
+  </div>
+  <p class="fine">CSV columns: <code style="font-family:var(--mono);color:#ffd9a3">provider, resource_id, type, scope, monthly_cost, cpu_avg, mem_avg, attached, age_days, env</code>. Your file never leaves the browser. In the full product the explanation is written by the LLM API; this demo uses templates so it works offline.</p>
+</div></section>
+
+<!-- APPROACH -->
+<section id="approach"><div class="wrap">
+  <span class="eyebrow">04 &middot; Technical approach</span>
+  <h2>From upload to savings in six steps</h2>
+  <p class="lead">Click a step to see what goes in, what comes out, and which part of the stack does the work.</p>
+  <div class="arch" id="arch"></div>
+  <div class="detail rv" id="archD"></div>
+  <div class="tech">
+    <div><b>Python</b>Core logic</div><div><b>Pandas</b>CSV processing</div><div><b>ML / Rules</b>Waste detection</div>
+    <div><b>LLM API</b>AI agent and narrative</div><div><b>Streamlit</b>Web interface</div><div><b>Cloud CLIs</b>Script output</div>
+  </div>
+
+  <h3 style="margin:56px 0 8px">One schema for three clouds</h3>
+  <p class="lead" style="margin-bottom:20px">Each provider gets its own parser. Every bill is mapped into the same columns, so the detection rules are written once and work everywhere.</p>
+  <div class="schema rv cmpw"><table>
+    <thead><tr><th>AWS (Cost &amp; Usage Report)</th><th>Azure (Cost export)</th><th>Google Cloud (Billing export)</th><th>Sentinel schema</th></tr></thead>
+    <tbody>
+      <tr><td>line_item_resource_id</td><td>ResourceId</td><td>resource.name</td><td>resource_id</td></tr>
+      <tr><td>product_product_family</td><td>MeterCategory</td><td>service.description</td><td>type</td></tr>
+      <tr><td>product_region</td><td>ResourceLocation</td><td>location.region</td><td>scope</td></tr>
+      <tr><td>line_item_unblended_cost</td><td>CostInBillingCurrency</td><td>cost</td><td>monthly_cost</td></tr>
+      <tr><td>resource_tags_user_env</td><td>Tags["env"]</td><td>labels.env</td><td>env</td></tr>
+    </tbody></table></div>
+
+  <h3 style="margin:56px 0 8px">Detection rules</h3>
+  <p class="lead" style="margin-bottom:20px">Clear rules catch the obvious waste first. An ML layer is planned for unusual spending patterns that rules miss.</p>
+  <div class="rules">
+    <div class="rule rv"><b>Orphaned disk</b><code>attached == false</code><span>Volume or disk not connected to any machine.</span></div>
+    <div class="rule rv"><b>Idle VM</b><code>cpu_avg &lt; 5%</code><span>Machine running for 30 days with almost no work.</span></div>
+    <div class="rule rv"><b>Oversized DB</b><code>cpu &lt; 20% and mem &lt; 30%</code><span>Database paid for at a size it never uses.</span></div>
+    <div class="rule rv"><b>Stale snapshot</b><code>age_days &gt; 90</code><span>Old backups kept long after they matter.</span></div>
+    <div class="rule rv"><b>Unused IP</b><code>type == ip and !attached</code><span>Reserved public address with nothing behind it.</span></div>
+  </div>
+</div></section>
+
+<!-- SAFETY -->
+<section id="safety"><div class="wrap">
+  <span class="eyebrow">05 &middot; Safety and feasibility</span>
+  <h2>Five layers between the AI and your production</h2>
+  <p class="lead">The biggest risk of an agent that writes delete commands is deleting the wrong thing. Every script passes through these layers before it can run.</p>
+  <div class="guard">
+    <div class="layers">
+      <div class="layer rv"><em>1</em><p><b>Production tags are protected</b><span>Anything tagged env=prod is flagged for review only. No script is written.</span></p></div>
+      <div class="layer rv"><em>2</em><p><b>Rule checks validate the AI</b><span>Every command is checked against the uploaded resource list and an allowed-command list.</span></p></div>
+      <div class="layer rv"><em>3</em><p><b>Snapshot before delete</b><span>Disks and databases are backed up first, so every change can be rolled back.</span></p></div>
+      <div class="layer rv"><em>4</em><p><b>Dry-run by default</b><span>Scripts only print what they would do until an engineer turns dry-run off.</span></p></div>
+      <div class="layer rv"><em>&#10003;</em><p><b>A human approves</b><span>Nothing runs until a person on the team reviews and approves it.</span></p></div>
+    </div>
+    <div class="risk rv">
+      <div class="r hd">Risk</div><div></div><div class="s hd">Our answer</div>
+      <div class="r">Deleting the wrong resource could break production</div><div class="a">&rarr;</div><div class="s">Archive or snapshot first, dry-run mode, human approval</div>
+      <div class="r">Billing formats differ across AWS, Azure and GCP</div><div class="a">&rarr;</div><div class="s">Common data schema with one parser per provider</div>
+      <div class="r">AI may suggest an inaccurate command</div><div class="a">&rarr;</div><div class="s">Validate scripts with rule checks before showing them</div>
+      <div class="r">Privacy of company billing data</div><div class="a">&rarr;</div><div class="s">Use anonymized logs; no credentials stored</div>
+    </div>
+  </div>
+  <div class="feas" style="margin:44px 0 0">
+    <div class="rv"><b>Technically feasible</b><span>Standard billing CSV exports and open-source tools</span></div>
+    <div class="rv"><b>Low prototype cost</b><span>Free tiers and sample datasets</span></div>
+    <div class="rv"><b>Quick demo</b><span>Upload a file, get a report and scripts</span></div>
+    <div class="rv"><b>Clear value</b><span>Savings are measured directly in money</span></div>
+  </div>
+</div></section>
+
+<!-- RESULTS -->
+<section id="results"><div class="wrap">
+  <span class="eyebrow">06 &middot; Results</span>
+  <h2>What a deployment could look like</h2>
+  <p class="lead">Pick a company, then change what the chart shows and how it is drawn. Every view can be downloaded.</p>
+  <div class="dash rv">
+    <div class="cos" id="cos"></div>
+    <div class="dbody">
+      <div class="dleft">
+        <div class="ctrls">
+          <div class="seg" id="dsSeg" role="group" aria-label="Data shown"></div>
+          <div class="seg" id="tySeg" role="group" aria-label="Chart format"></div>
+        </div>
+        <div id="chart" aria-live="polite"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="dright">
+        <span class="badge">Illustrative sample data</span>
+        <h3 id="coName"></h3>
+        <p class="story" id="story"></p>
+        <div class="kpi"><span>Monthly spend saved (month 6)</span><strong class="g" id="k1"></strong></div>
+        <div class="kpi"><span>Cut versus projected bill</span><strong id="k2"></strong></div>
+        <div class="kpi"><span>Six-month savings</span><strong id="k3"></strong></div>
+        <div class="dl" style="margin-top:18px">
+          <button class="btn btn-g btn-s" id="dCsv">Download CSV</button>
+          <button class="btn btn-g btn-s" id="dPng">Download image</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="fine">The companies and figures above are fictional examples built to show what a FinOps Sentinel report looks like. They are not real customers.</p>
+
+  <h3 style="margin:56px 0 18px">How it compares</h3>
+  <div class="cmp cmpw rv"><table>
+    <thead><tr><th></th><th>Native cost consoles</th><th>BI dashboards</th><th class="us">FinOps Sentinel</th></tr></thead>
+    <tbody>
+      <tr><td>All three clouds in one view</td><td class="no">One cloud each</td><td class="p">With custom work</td><td class="us y">Yes</td></tr>
+      <tr><td>Finds idle and orphaned resources</td><td class="p">Some, per cloud</td><td class="no">No</td><td class="us y">Yes</td></tr>
+      <tr><td>Explains the leak in plain language</td><td class="no">No</td><td class="no">No</td><td class="us y">Yes, AI narrative</td></tr>
+      <tr><td>Writes the fix script</td><td class="no">No</td><td class="no">No</td><td class="us y">Yes, for all CLIs</td></tr>
+      <tr><td>Snapshot, dry-run and approval built in</td><td class="no">Manual</td><td class="no">N/A</td><td class="us y">Yes</td></tr>
+      <tr><td>Works without cloud credentials</td><td class="no">Needs account access</td><td class="p">Needs data pipeline</td><td class="us y">Yes, CSV upload</td></tr>
+    </tbody></table></div>
+</div></section>
+
+<!-- BUSINESS -->
+<section id="business"><div class="wrap">
+  <span class="eyebrow">07 &middot; Business canvas</span>
+  <h2>Who it is for and how it earns</h2>
+  <p class="lead">The value is easy to prove: every finding has a dollar figure attached.</p>
+  <div class="two">
+    <div class="card rv"><h3>Mission and vision</h3><ul>
+      <li>Mission: help every organization stop wasting cloud money with explainable AI</li>
+      <li>Vision: cloud spending that optimizes itself, safely</li></ul></div>
+    <div class="card rv"><h3>Market and competition</h3><ul>
+      <li>Target: enterprises, start-ups and IT service providers on AWS, Azure, GCP</li>
+      <li>Alternatives: native cost tools and dashboards that show charts only</li>
+      <li>Our edge: actionable scripts and narrative, multi-cloud</li></ul></div>
+    <div class="card rv"><h3>Business perspective</h3><ul>
+      <li>Users: FinOps, DevOps and finance teams</li>
+      <li>Model: subscription tiers or a share of savings</li>
+      <li>Value: findings turn directly into money saved</li></ul></div>
+    <div class="card rv"><h3>Financial planning and requirements</h3><ul>
+      <li>Needs: LLM API credits, cloud hosting, a small dev team</li>
+      <li>Prototype: built on free tiers and open-source tools</li>
+      <li>Revenue: SaaS plans for teams and organizations</li></ul></div>
+  </div>
+
+  <h3 style="margin:56px 0 24px">Roadmap</h3>
+  <div class="road">
+    <div class="ph now rv"><small>Now</small><b>Hackathon prototype</b><ul><li>CSV upload and cleaning</li><li>Rule-based detection</li><li>Script generation with dry-run</li></ul></div>
+    <div class="ph rv"><small>Next</small><b>MVP</b><ul><li>LLM agent narrative</li><li>Parsers for all three clouds</li><li>Approval workflow</li></ul></div>
+    <div class="ph rv"><small>Then</small><b>Pilot</b><ul><li>Read-only API connectors</li><li>Savings tracker</li><li>ML anomaly detection</li></ul></div>
+    <div class="ph rv"><small>Later</small><b>Scale</b><ul><li>Team workspaces and roles</li><li>Audit log</li><li>Savings-share billing</li></ul></div>
+  </div>
+</div></section>
+
+<!-- IMPACT -->
+<section id="impact"><div class="wrap">
+  <span class="eyebrow">08 &middot; Impact</span>
+  <h2>Impact and benefits</h2>
+  <p class="lead">Savings you can measure, and a lighter footprint on the data centre.</p>
+  <div class="two">
+    <div class="card rv"><h3>Impact on the target audience</h3><ul>
+      <li>Cloud bills drop by removing unused resources</li>
+      <li>Hours of manual billing analysis saved</li>
+      <li>Engineers get safe, ready-made fix scripts</li>
+      <li>Leaders see savings in plain language</li>
+      <li>Example: $14,000 saved in a month from three lines of code</li></ul></div>
+    <div class="stack">
+      <div class="card rv"><h3>Economic</h3><ul><li>Cuts up to ~30% wasted cloud spend</li><li>Faster, cheaper cost audits</li><li>Clear return on investment</li></ul></div>
+      <div class="card rv"><h3>Social</h3><ul><li>Frees engineers for real work</li><li>Makes cost control easy for non-experts</li><li>Helps small teams afford the cloud</li></ul></div>
+      <div class="card rv"><h3>Environmental</h3><ul><li>Fewer idle servers running</li><li>Lower energy use and carbon footprint</li><li>Efficient use of data-centre resources</li></ul></div>
+    </div>
+  </div>
+</div></section>
+
+<section id="membership" style="padding:10px 0 60px"><div class="wrap">
+  <div class="mem rv">
+    <div><h3>Membership</h3><p>Start free. Move up to a paid plan when your team needs more clouds and approvals.</p></div>
+    <div class="cta"><button class="btn btn-g" id="togPlans" aria-expanded="false">Compare plans</button><a class="btn btn-a" href="auth.html?mode=signup">Sign up</a></div>
+  </div>
+  <div id="plans">
+    <div class="pl"><b>Starter</b><b>$0</b><span>1 cloud account, 5 uploads a month, dry-run scripts</span><a class="btn btn-g btn-s" href="auth.html?mode=signup&amp;plan=Starter">Join</a></div>
+    <div class="pl"><b>Team</b><b>$49/mo</b><span>All three clouds, unlimited uploads, savings tracker, approvals</span><a class="btn btn-g btn-s" href="auth.html?mode=signup&amp;plan=Team">Join</a></div>
+    <div class="pl"><b>Enterprise</b><b>$199/mo</b><span>Workspaces and roles, audit log, savings-share billing option</span><a class="btn btn-g btn-s" href="auth.html?mode=signup&amp;plan=Enterprise">Join</a></div>
+  </div>
+</div></section>
+
+</main>
+
+<footer><div class="wrap"><span>FinOps Sentinel | Team Code Catalyst | DEX26020 | Software</span><span>Sathyabama Institute of Science and Technology, 2026</span></div></footer>
+
+
+<script>
+document.documentElement.classList.add('js');
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const still=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=n=>'$'+Math.round(n).toLocaleString('en-US');
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),3200)}
+function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+
+/* ---------- background ---------- */
+(function(){
+  const c=$('#bg'),x=c.getContext('2d');let W,H,P=[],mx=-999,my=-999;
+  function size(){W=c.width=innerWidth;H=c.height=innerHeight;
+    const n=Math.min(100,Math.floor(W*H/16000));P=[];
+    for(let i=0;i<n;i++)P.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.35,vy:(Math.random()-.5)*.35,r:Math.random()*1.8+.8,h:Math.random()<.25})}
+  addEventListener('resize',()=>{size();if(still)frame()});
+  addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY});
+  function frame(){
+    x.fillStyle='#050505';x.fillRect(0,0,W,H);
+    const g=x.createRadialGradient(W*.8,H*.15,0,W*.8,H*.15,W*.6);
+    g.addColorStop(0,'rgba(255,106,43,.15)');g.addColorStop(1,'rgba(255,106,43,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+    for(const p of P){
+      if(!still){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1}
+      const dx=p.x-mx,dy=p.y-my,d=Math.hypot(dx,dy);
+      if(d<120&&d>0&&!still){p.x+=dx/d*1.2;p.y+=dy/d*1.2}
+    }
+    for(let i=0;i<P.length;i++){const a=P[i];
+      for(let j=i+1;j<P.length;j++){const b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);
+        if(d<150){x.strokeStyle='rgba(255,176,46,'+(.2*(1-d/150))+')';x.lineWidth=1;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}
+      const dm=Math.hypot(a.x-mx,a.y-my);
+      if(dm<170){x.strokeStyle='rgba(255,106,43,'+(.5*(1-dm/170))+')';x.beginPath();x.moveTo(a.x,a.y);x.lineTo(mx,my);x.stroke()}
+      x.fillStyle=a.h?'#ff6a2b':'#ffb02e';x.globalAlpha=a.h?.95:.65;x.beginPath();x.arc(a.x,a.y,a.r,0,7);x.fill();x.globalAlpha=1;
+    }
+    if(!still)requestAnimationFrame(frame);
+  }
+  size();frame();
+})();
+
+/* ---------- scroll progress, nav highlight, reveal ---------- */
+addEventListener('scroll',()=>{const h=document.documentElement;$('#prog').style.width=(h.scrollTop/(h.scrollHeight-h.clientHeight)*100)+'%'},{passive:true});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+$$('.rv').forEach(el=>io.observe(el));
+const so=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){$$('#navl a').forEach(a=>a.classList.toggle('act',a.getAttribute('href')==='#'+e.target.id))}}),{rootMargin:'-45% 0px -50% 0px'});
+$$('main section[id]').forEach(s=>so.observe(s));
+
+/* ---------- hero terminal ---------- */
+(function(){
+  const L=[
+    ['c','# 1. upload and clean'],['','Parsing 3 providers ... '],['g','  1,284 line items -> common schema'],
+    ['c','# 2. detect waste'],['a','  ! 4 unattached EBS volumes        $1,200/mo'],['a','  ! Azure VM idle at 2% CPU (30d)    $640/mo'],['a','  ! GCP Cloud SQL oversized          $410/mo'],['r','  x prod-api-db  env=prod  -> review only'],
+    ['c','# 3. agent explains'],['b','  "These volumes have had no machine attached for 47 days."'],
+    ['c','# 4. safe script (dry-run on)'],['','  aws ec2 create-snapshot --volume-id vol-0a1b2c'],['','  aws ec2 delete-volume --volume-id vol-0a1b2c --dry-run'],
+    ['g','  Potential savings: $2,250 / month. Awaiting approval.']];
+  const o=$('#tout');
+  if(still){o.innerHTML=L.map(([c,t])=>`<span class="${c}">${esc(t)}</span>`).join('\n');return}
+  let i=0,j=0,html='';
+  function tick(){
+    if(i>=L.length){o.innerHTML=html+'<span class="cur"></span>';setTimeout(()=>{i=0;j=0;html='';tick()},5000);return}
+    const [c,t]=L[i];j+=3;
+    const part=`<span class="${c}">${esc(t.slice(0,j))}</span>`;
+    o.innerHTML=html+part+'<span class="cur"></span>';
+    if(j>=t.length){html+=`<span class="${c}">${esc(t)}</span>\n`;i++;j=0;setTimeout(tick,180)}else setTimeout(tick,16);
+  }
+  tick();
+})();
+
+/* ---------- estimator ---------- */
+let rate=.3;
+function calc(){const v=+$('#spend').value;$('#spendVal').textContent=money(v);$('#save').textContent=money(v*rate);$('#saveYear').textContent=money(v*rate*12)+' a year'}
+$('#spend').addEventListener('input',calc);
+$('#rateSeg').onclick=e=>{const b=e.target.closest('button');if(!b)return;rate=+b.dataset.r;$$('#rateSeg button').forEach(x=>x.classList.toggle('on',x===b));calc()};
+
+/* ---------- LIVE DEMO: rule engine + script generator ---------- */
+const SAMPLE=`provider,resource_id,type,scope,monthly_cost,cpu_avg,mem_avg,attached,age_days,env
+AWS,vol-0a1b2c,volume,us-east-1,300,,,false,47,dev
+AWS,vol-0d4e5f,volume,us-east-1,300,,,false,61,dev
+AWS,vol-07g8h9,volume,us-east-1,300,,,false,47,test
+AWS,vol-0j1k2l,volume,us-east-1,300,,,false,52,dev
+AWS,i-09build01,vm,us-east-1,520,3,12,true,210,ci
+AWS,i-0web0001,vm,us-east-1,480,61,70,true,400,prod
+AWS,snap-0old991,snapshot,us-east-1,95,,,true,240,dev
+AWS,eipalloc-0f12ab,ip,us-east-1,4,,,false,90,dev
+AWS,prod-api-db,database,us-east-1,1150,9,18,true,380,prod
+Azure,vm-test-02,vm,rg-staging,640,2,10,true,95,staging
+Azure,disk-old-data,volume,rg-staging,180,,,false,130,staging
+Azure,sqldb-reports,database,rg-analytics,720,11,22,true,300,dev
+GCP,analytics-sql-1,database,us-central1-a,820,8,19,true,150,dev
+GCP,render-node-7,vm,us-central1-a,560,1,6,true,60,dev
+GCP,disk-scratch-3,volume,us-central1-a,120,,,false,75,dev
+GCP,frontend-vm,vm,us-central1-a,350,48,55,true,500,prod`;
+
+function parseCSV(t){
+  const lines=t.trim().split(/\r?\n/).filter(Boolean);if(lines.length<2)throw new Error('The file needs a header row and at least one resource.');
+  const h=lines[0].split(',').map(s=>s.trim().toLowerCase());
+  const need=['provider','resource_id','type','monthly_cost'];const miss=need.filter(n=>!h.includes(n));
+  if(miss.length)throw new Error('Missing column(s): '+miss.join(', '));
+  return lines.slice(1).map(l=>{const v=l.split(',');const o={};h.forEach((k,i)=>o[k]=(v[i]||'').trim());
+    const p=o.provider.toLowerCase();o.provider=p.startsWith('az')?'Azure':p.startsWith('g')?'GCP':'AWS';
+    o.monthly_cost=+o.monthly_cost||0;o.cpu=o.cpu_avg===''||o.cpu_avg==null?null:+o.cpu_avg;o.mem=o.mem_avg===''||o.mem_avg==null?null:+o.mem_avg;
+    o.att=String(o.attached).toLowerCase()!=='false';o.age=+o.age_days||0;o.env=(o.env||'').toLowerCase();o.type=(o.type||'').toLowerCase();o.scope=o.scope||'default';return o});
+}
+const KIND={
+  orphan:{n:'Orphaned disk',save:1,act:'Snapshot, then delete'},
+  idle:{n:'Idle VM',save:.9,act:'Stop or deallocate'},
+  big:{n:'Oversized DB',save:.5,act:'Downsize one tier'},
+  snap:{n:'Stale snapshot',save:1,act:'Delete'},
+  ip:{n:'Unused IP',save:1,act:'Release'}
+};
+function detect(rows){
+  const f=[];
+  rows.forEach(r=>{
+    let k=null,conf=0,why='';
+    if(r.type==='volume'&&!r.att){k='orphan';conf=.97;why=`has had no machine attached for ${r.age} days`}
+    else if(r.type==='ip'&&!r.att){k='ip';conf=.95;why='is reserved but not connected to anything'}
+    else if(r.type==='snapshot'&&r.age>90){k='snap';conf=.85;why=`is ${r.age} days old, well past a 90-day retention window`}
+    else if(r.type==='vm'&&r.cpu!=null&&r.cpu<5){k='idle';conf=r.cpu<3?.93:.82;why=`averaged only ${r.cpu}% CPU over the last 30 days`}
+    else if(r.type==='database'&&r.cpu!=null&&r.cpu<20&&r.mem!=null&&r.mem<30){k='big';conf=.78;why=`peaks at ${r.cpu}% CPU and ${r.mem}% memory, so a smaller tier would fit`}
+    if(k)f.push({...r,k,conf,why,saving:Math.round(r.monthly_cost*KIND[k].save),prod:r.env==='prod'});
+  });
+  return f.sort((a,b)=>(a.prod-b.prod)||(b.saving-a.saving));
+}
+function script(x){
+  const id=x.resource_id,sc=x.scope,P=x.provider;let cmds=[];
+  if(P==='AWS'){
+    if(x.k==='orphan')cmds=[`aws ec2 create-snapshot --volume-id ${id} --description "sentinel-backup-${id}"`,`aws ec2 delete-volume --volume-id ${id} --region ${sc}`];
+    if(x.k==='idle')cmds=[`aws ec2 stop-instances --instance-ids ${id} --region ${sc}`];
+    if(x.k==='snap')cmds=[`aws ec2 delete-snapshot --snapshot-id ${id} --region ${sc}`];
+    if(x.k==='ip')cmds=[`aws ec2 release-address --allocation-id ${id} --region ${sc}`];
+    if(x.k==='big')cmds=[`aws rds create-db-snapshot --db-instance-identifier ${id} --db-snapshot-identifier ${id}-sentinel-bak`,`aws rds modify-db-instance --db-instance-identifier ${id} --db-instance-class db.t3.medium`];
+  }else if(P==='Azure'){
+    if(x.k==='orphan')cmds=[`az snapshot create --resource-group ${sc} --name ${id}-bak --source ${id}`,`az disk delete --resource-group ${sc} --name ${id} --yes`];
+    if(x.k==='idle')cmds=[`az vm deallocate --resource-group ${sc} --name ${id}`];
+    if(x.k==='big')cmds=[`az sql db update --resource-group ${sc} --server <server-name> --name ${id} --service-objective S1`];
+    if(x.k==='snap')cmds=[`az snapshot delete --resource-group ${sc} --name ${id}`];
+    if(x.k==='ip')cmds=[`az network public-ip delete --resource-group ${sc} --name ${id}`];
+  }else{
+    if(x.k==='orphan')cmds=[`gcloud compute disks snapshot ${id} --zone ${sc} --snapshot-names ${id}-bak`,`gcloud compute disks delete ${id} --zone ${sc} --quiet`];
+    if(x.k==='idle')cmds=[`gcloud compute instances stop ${id} --zone ${sc}`];
+    if(x.k==='big')cmds=[`gcloud sql backups create --instance ${id}`,`gcloud sql instances patch ${id} --tier db-custom-2-7680`];
+    if(x.k==='snap')cmds=[`gcloud compute snapshots delete ${id} --quiet`];
+    if(x.k==='ip')cmds=[`gcloud compute addresses delete ${id} --region ${sc} --quiet`];
+  }
+  const head=`#!/usr/bin/env bash
+# FinOps Sentinel | ${KIND[x.k].n} | ${P} | ${id}
+# Estimated saving: ${money(x.saving)}/month
+set -euo pipefail
+DRY_RUN=\${DRY_RUN:-1}   # set DRY_RUN=0 only after approval
+run(){ if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] $*"; else "$@"; fi; }
+`;
+  if(x.prod)return head+`\n# BLOCKED: resource is tagged env=prod.\n# Sentinel will not generate commands for production.\n# A human owner must review this finding manually.\n`+cmds.map(c=>'# '+c).join('\n')+'\n';
+  return head+'\n'+cmds.map(c=>'run '+c).join('\n')+'\n';
+}
+function narrative(x){
+  const base=`<b>${esc(x.resource_id)}</b> on ${x.provider} ${esc(x.why)}. It costs <b>${money(x.monthly_cost)}</b> a month.`;
+  const plan={orphan:'I recommend taking a snapshot first so the data can be restored, then deleting the disk.',
+    idle:'I recommend stopping it outside working hours or removing it if no team claims it within a week.',
+    big:'I recommend a backup, then moving it down one size. It can be scaled back up in minutes if needed.',
+    snap:'I recommend deleting it unless a compliance rule requires keeping it longer.',
+    ip:'I recommend releasing the address. Reserved addresses are billed even when unused.'}[x.k];
+  if(x.prod)return base+` However, it is tagged <b>production</b>, so I have not written a fix. Please ask the service owner to confirm before any change.`;
+  return base+' '+plan+` Expected saving: <b>${money(x.saving)}/month</b>.`;
+}
+function hl(s){return esc(s).replace(/^(#.*)$/gm,'<span class="c">$1</span>').replace(/^(run )/gm,'<span class="k">$1</span>').replace(/(&quot;[^&]*&quot;)/g,'<span class="s">$1</span>')}
+
+let FIND=[],ROWS=[],sel=0,busy=false;
+async function runPipeline(text,name){
+  if(busy)return;busy=true;
+  const steps=$$('#pipe div');steps.forEach(s=>s.className='');
+  const wait=ms=>new Promise(r=>setTimeout(r,still?0:ms));
+  try{
+    steps[0].className='run';await wait(350);
+    ROWS=parseCSV(text);steps[0].className='done';
+    steps[1].className='run';await wait(400);steps[1].className='done';
+    steps[2].className='run';await wait(500);FIND=detect(ROWS);steps[2].className='done';
+    $('#kScan').textContent=ROWS.length;$('#kFind').textContent=FIND.length;
+    steps[3].className='run';await wait(450);steps[3].className='done';
+    steps[4].className='run';await wait(400);steps[4].className='done';
+    steps[5].
